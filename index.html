@@ -58,7 +58,11 @@
   .labels { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
   .lbl { position: absolute; left: 0; top: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
     color: rgba(255,255,255,.82); white-space: nowrap; transform: translate(-50%, -50%); text-shadow: 0 1px 6px rgba(0,0,0,.9); will-change: transform, opacity; }
-  .lbl.origin { color: var(--pink); font-weight: 600; font-size: 11px; }
+  .lbl.origin, .lbl.major { color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .14em;
+    text-shadow: 0 0 12px rgba(22,69,255,.95), 0 0 3px rgba(22,69,255,.8), 0 1px 6px rgba(0,0,0,.9); }
+  /* 미국으로 들어가는 연출 중에는 UI를 잠시 숨김 */
+  .hero .hud, .hero .bar, .hero .labels, .hero .scroll-cue { transition: opacity .8s ease; }
+  .hero.diving .hud, .hero.diving .bar, .hero.diving .labels, .hero.diving .scroll-cue { opacity: 0; }
 
   .bar { position: absolute; z-index: 5; left: 50%; bottom: 24px; transform: translateX(-50%);
     display: flex; gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: 999px;
@@ -145,7 +149,7 @@
   .tt.arrived .tt-reveal span:nth-child(3) { transition-delay: .5s; }
 
   /* 배포 모드: 버튼 바 숨김 */
-  body.no-controls .bar, body.no-controls .drop { display: none !important; }
+  body.no-controls .drop, body.no-controls .bar button:not(#btnReplay) { display: none !important; }
 
   /* 2009 도착 전에는 아래 섹션 숨김 */
   body:not(.unlocked) .after-2009 { display: none; }
@@ -202,13 +206,7 @@
   <p>서울에서 출발한 190장의 이미지가 세계 곳곳의 도시로 퍼져 나갑니다. 가장 큰 물결은 태평양을 건너 미국으로 향합니다.</p>
 </div>
 
-<div class="stats">
-  <div class="stat"><div class="k">Exported</div><div class="v"><span id="sPlates">0</span><small>/ 190</small></div></div>
-  <div class="stat"><div class="k">Cities reached</div><div class="v"><span id="sCities">0</span><small id="sCitiesTotal"></small></div></div>
-  <div class="stat"><div class="k">Farthest route</div><div class="v"><span id="sKm">0</span><small>km</small></div></div>
-</div>
 
-<div class="regions" id="regions"></div>
 
 <div class="bar">
   <button class="primary" id="btnReplay">다시 퍼뜨리기</button>
@@ -803,19 +801,7 @@ const HOVER_SCALE = 1.0;         // 1.0 = 2배
     aUv.needsUpdate = aSize.needsUpdate = true;
   }
 
-  // ---------- HUD: regions + labels ----------
-  const regionTotals = {}, regionEls = {};
-  plates.forEach((p) => { if (p.region !== "kr") regionTotals[p.region] = (regionTotals[p.region] || 0) + 1; });
-  Object.keys(REGION_NAMES).forEach((r) => {
-    const el = document.createElement("div");
-    el.className = "reg " + r;
-    el.innerHTML = `<span>${REGION_NAMES[r]}</span><b>0</b><div class="bar2"><i></i></div>`;
-    $("regions").appendChild(el);
-    regionEls[r] = { n: el.querySelector("b"), bar: el.querySelector("i") };
-  });
-  const maxRegion = Math.max(...Object.values(regionTotals));
-  const nonOriginHubs = HUBS.filter((h) => h.name !== ORIGIN.name).length;
-  $("sCitiesTotal").textContent = "/ " + nonOriginHubs;
+  // ---------- labels ----------
   const hubArrival = HUBS.map((h, hi) => Math.min(...plates.filter((p) => p.hub === hi).map((p) => p.delay + FLIGHT_SECONDS)));
 
   const labelEls = [];
@@ -825,7 +811,7 @@ const HOVER_SCALE = 1.0;         // 1.0 = 2배
   labelEls.push({ el: originLbl, v: O.clone().multiplyScalar(1.06), arrive: 0, origin: true });
   HUBS.forEach((h, hi) => {
     if (!LABELLED.has(h.name)) return;
-    const el = document.createElement("div"); el.className = "lbl"; el.textContent = h.name;
+    const el = document.createElement("div"); el.className = "lbl" + (h.name === "Los Angeles" ? " major" : ""); el.textContent = h.name;
     $("labels").appendChild(el);
     labelEls.push({ el, v: hubVec[hi].clone().multiplyScalar(1.05), arrive: hubArrival[hi] });
   });
@@ -869,7 +855,41 @@ const HOVER_SCALE = 1.0;         // 1.0 = 2배
 
   // ---------- replay / files ----------
   let t0 = performance.now();
-  function replay() { t0 = performance.now(); resetOrientation(); }
+  // ---------- 선이 다 뻗은 뒤: 미국으로 들어가며 2009 시계까지 자동 스크롤 ----------
+  var camBase = 4, camZ = 4;
+  var dive = { state: "idle", t0: 0, from: new THREE.Quaternion(), scrolling: false };
+  let userScrolled = false;
+  const qUSFace = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(37))
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(97)));
+  const easeIO = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  // 사용자가 직접 스크롤하면 자동 연출은 하지 않거나 즉시 멈춤 (기존 스크롤 방식 유지)
+  const markUser = (e) => {
+    if (e.type === "keydown" && !["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Home", "End"].includes(e.key)) return;
+    userScrolled = true;
+    if (dive.state === "zoom") endDive();
+  };
+  ["wheel", "touchmove", "keydown"].forEach((ev) => window.addEventListener(ev, markUser, { passive: true }));
+  function startDive(now) {
+    dive.state = "zoom"; dive.t0 = now; dive.from.copy(globe.quaternion); dive.scrolling = false;
+    vel.x = vel.y = 0;
+    $("hero").classList.add("diving");
+  }
+  function endDive() {
+    dive.state = "done"; dive.scrolling = false;
+    setTimeout(() => $("hero").classList.remove("diving"), 400);
+  }
+  function autoScrollTo(el, dur) {
+    const y0 = scrollY, y1 = el.getBoundingClientRect().top + scrollY, s = performance.now();
+    dive.scrolling = true;
+    const step = (n) => {
+      if (!dive.scrolling) return;
+      const k = Math.min(1, (n - s) / dur);
+      window.scrollTo(0, y0 + (y1 - y0) * easeIO(k));
+      if (k < 1) requestAnimationFrame(step); else endDive();
+    };
+    requestAnimationFrame(step);
+  }
+  function replay() { t0 = performance.now(); resetOrientation(); dive.state = "idle"; userScrolled = false; $("hero").classList.remove("diving"); }
   $("btnReplay").addEventListener("click", replay);
   const isImg = (f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|avif|gif|bmp)$/i.test(f.name);
   const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true });
@@ -926,7 +946,9 @@ const HOVER_SCALE = 1.0;         // 1.0 = 2배
     camera.aspect = w / h;
     const vHalf = THREE.MathUtils.degToRad(camera.fov / 2), hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
     const fill = w < 760 ? 0.82 : 0.74;
-    camera.position.set(0, 0, 1.18 / Math.sin(Math.min(vHalf, hHalf)) / fill * 0.9);
+    camBase = 1.18 / Math.sin(Math.min(vHalf, hHalf)) / fill * 0.9;
+    if (dive.state !== "zoom") camZ = camBase;
+    camera.position.set(0, 0, camZ);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
     landMat.uniforms.uPx.value = renderer.getPixelRatio();
@@ -945,7 +967,18 @@ const HOVER_SCALE = 1.0;         // 1.0 = 2배
     const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
     const T = (now - t0) / 1000;
 
-    if (!dragging) {
+    if (dive.state === "idle" && !userScrolled && heroVisible && scrollY < 40 && T > lastArrival + 0.8) startDive(now);
+    if (dive.state === "zoom") {
+      const k = Math.min(1, (now - dive.t0) / 2400), e = easeIO(k);
+      globe.quaternion.slerpQuaternions(dive.from, qUSFace, e);
+      camZ = camBase * (1 - 0.6 * e);                       // 미국 쪽으로 깊숙이 확대
+      if (k > 0.55 && !dive.scrolling) autoScrollTo($("tt"), 1700);
+    } else {
+      camZ += (camBase - camZ) * (1 - Math.exp(-dt * (heroVisible ? 2.5 : 30)));
+    }
+    camera.position.z = camZ;
+
+    if (!dragging && dive.state !== "zoom") {
       if (Math.abs(vel.x) + Math.abs(vel.y) > 1e-4) { rotateWorld(vel.x * dt, vel.y * dt); const d = Math.exp(-INERTIA_DECAY * dt); vel.x *= d; vel.y *= d; }
       // 확산 중에는 물결을 따라 태평양을 건너 미국 쪽으로 빠르게, 그 뒤엔 천천히
       const spreading = T < SPREAD_SECONDS * 0.62 ? 1 : 0;
@@ -992,19 +1025,6 @@ const HOVER_SCALE = 1.0;         // 1.0 = 2배
       aState.setXY(i, h, local);
     }
     mesh.instanceMatrix.needsUpdate = true; aState.needsUpdate = true;
-
-    const key = arrived + ":" + citySet.size;
-    if (key !== statsKey) {
-      statsKey = key;
-      $("sPlates").textContent = arrived;
-      $("sCities").textContent = citySet.size;
-      $("sKm").textContent = far.toLocaleString("en-US");
-      for (const r in regionEls) {
-        const a = regArr[r] || 0;
-        regionEls[r].n.textContent = `${a}`;
-        regionEls[r].bar.style.width = (a / maxRegion * 100).toFixed(1) + "%";
-      }
-    }
 
     // labels
     globe.updateMatrixWorld();
