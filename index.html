@@ -328,14 +328,24 @@
    페이지를 열 때 자동으로 채워집니다. 비워두면 샘플 플레이트가 뜹니다.
    예: const IMAGE_URLS = ["photos/01.jpg", "photos/02.jpg"];
    ========================================================================= */
-const IMAGE_URLS = [];
+const IMAGE_URLS = Array.from(
+  { length: 82 },
+  (_, i) => `K-POP-SITE/photos/${String(i + 1).padStart(3, "0")}.jpeg`
+);
+
+const PHOTO_FOLDER = "K-POP-SITE/photos";
 
 /* ---- 배포 설정 ----
    PHOTO_FOLDER: index.html과 같은 위치의 사진 폴더 이름.
    사진 이름은 001.jpg ~ 190.jpg (또는 1.jpg ~ 190.jpg) 형식이면 자동으로 읽습니다.
    확장자는 jpg / jpeg / png / webp 모두 됩니다.
    SHOW_CONTROLS: false면 하단 버튼 바와 드래그&드롭을 숨깁니다. */
-const PHOTO_FOLDER = "photos";
+const IMAGE_URLS = Array.from(
+  { length: 82 },
+  (_, i) => `K-POP-SITE/photos/${String(i + 1).padStart(3, "0")}.jpeg`
+);
+
+const PHOTO_FOLDER = "K-POP-SITE/photos";
 const SHOW_CONTROLS = false;
 
 const PLATE_COUNT = 190;
