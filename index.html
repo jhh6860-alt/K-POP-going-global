@@ -199,10 +199,16 @@
 <div class="hud tl">
   <div class="kicker">● Outbound from Seoul</div>
   <h1>K-POP,<br/>Going Global</h1>
-  <p>서울에서 출발한 190장의 이미지가 태평양을 건너 미국 전역으로 퍼져 나갑니다.</p>
+  <p>서울에서 출발한 190장의 이미지가 세계 곳곳의 도시로 퍼져 나갑니다. 가장 큰 물결은 태평양을 건너 미국으로 향합니다.</p>
 </div>
 
+<div class="stats">
+  <div class="stat"><div class="k">Exported</div><div class="v"><span id="sPlates">0</span><small>/ 190</small></div></div>
+  <div class="stat"><div class="k">Cities reached</div><div class="v"><span id="sCities">0</span><small id="sCitiesTotal"></small></div></div>
+  <div class="stat"><div class="k">Farthest route</div><div class="v"><span id="sKm">0</span><small>km</small></div></div>
+</div>
 
+<div class="regions" id="regions"></div>
 
 <div class="bar">
   <button class="primary" id="btnReplay">다시 퍼뜨리기</button>
@@ -316,25 +322,63 @@ const PLATE_COUNT = 190;
 const ORIGIN = { name: "Seoul", lat: 37.5665, lon: 126.978 };
 
 // 도착 도시 — w는 그 도시 주변에 놓일 플레이트 수 (합계 190). 미국 비중을 가장 크게.
-const HUBS = [   // 사진은 미국에만 도착 — 아래 도시는 마우스를 올렸을 때 가장 가까운 도시 이름으로만 쓰임
-  { name: "Los Angeles", lat: 34.05, lon: -118.24, r: "us" },
-  { name: "New York", lat: 40.71, lon: -74.0, r: "us" },
-  { name: "Chicago", lat: 41.88, lon: -87.63, r: "us" },
-  { name: "Atlanta", lat: 33.75, lon: -84.39, r: "us" },
-  { name: "Dallas", lat: 32.78, lon: -96.8, r: "us" },
-  { name: "Seattle", lat: 47.61, lon: -122.33, r: "us" },
-  { name: "San Francisco", lat: 37.77, lon: -122.42, r: "us" },
-  { name: "Houston", lat: 29.76, lon: -95.37, r: "us" },
-  { name: "Miami", lat: 25.76, lon: -80.19, r: "us" },
-  { name: "Las Vegas", lat: 36.17, lon: -115.14, r: "us" },
-  { name: "Denver", lat: 39.74, lon: -104.99, r: "us" },
-  { name: "Washington", lat: 38.91, lon: -77.04, r: "us" },
-  { name: "Minneapolis", lat: 44.98, lon: -93.27, r: "us" },
-  { name: "Phoenix", lat: 33.45, lon: -112.07, r: "us" },
-  { name: "Boston", lat: 42.36, lon: -71.06, r: "us" },
+const HUBS = [
+  // United States
+  { name: "Los Angeles", lat: 34.05, lon: -118.24, w: 14, r: "us" },
+  { name: "New York", lat: 40.71, lon: -74.0, w: 12, r: "us" },
+  { name: "Chicago", lat: 41.88, lon: -87.63, w: 7, r: "us" },
+  { name: "Atlanta", lat: 33.75, lon: -84.39, w: 6, r: "us" },
+  { name: "Dallas", lat: 32.78, lon: -96.8, w: 6, r: "us" },
+  { name: "Seattle", lat: 47.61, lon: -122.33, w: 5, r: "us" },
+  { name: "San Francisco", lat: 37.77, lon: -122.42, w: 5, r: "us" },
+  { name: "Houston", lat: 29.76, lon: -95.37, w: 4, r: "us" },
+  { name: "Miami", lat: 25.76, lon: -80.19, w: 4, r: "us" },
+  { name: "Las Vegas", lat: 36.17, lon: -115.14, w: 4, r: "us" },
+  { name: "Denver", lat: 39.74, lon: -104.99, w: 3, r: "us" },
+  { name: "Washington", lat: 38.91, lon: -77.04, w: 3, r: "us" },
+  { name: "Honolulu", lat: 21.31, lon: -157.86, w: 2, r: "us" },
+  // Rest of the Americas
+  { name: "Toronto", lat: 43.65, lon: -79.38, w: 4, r: "am" },
+  { name: "Vancouver", lat: 49.28, lon: -123.12, w: 3, r: "am" },
+  { name: "Mexico City", lat: 19.43, lon: -99.13, w: 6, r: "am" },
+  { name: "Bogotá", lat: 4.71, lon: -74.07, w: 3, r: "am" },
+  { name: "Lima", lat: -12.05, lon: -77.04, w: 3, r: "am" },
+  { name: "São Paulo", lat: -23.55, lon: -46.63, w: 6, r: "am" },
+  { name: "Santiago", lat: -33.45, lon: -70.67, w: 3, r: "am" },
+  { name: "Buenos Aires", lat: -34.6, lon: -58.38, w: 3, r: "am" },
+  // Europe
+  { name: "London", lat: 51.51, lon: -0.13, w: 6, r: "eu" },
+  { name: "Paris", lat: 48.86, lon: 2.35, w: 5, r: "eu" },
+  { name: "Berlin", lat: 52.52, lon: 13.4, w: 4, r: "eu" },
+  { name: "Madrid", lat: 40.42, lon: -3.7, w: 3, r: "eu" },
+  { name: "Stockholm", lat: 59.33, lon: 18.07, w: 2, r: "eu" },
+  { name: "Warsaw", lat: 52.23, lon: 21.01, w: 2, r: "eu" },
+  { name: "Istanbul", lat: 41.01, lon: 28.98, w: 3, r: "eu" },
+  // Middle East · Africa
+  { name: "Dubai", lat: 25.2, lon: 55.27, w: 3, r: "mea" },
+  { name: "Riyadh", lat: 24.71, lon: 46.68, w: 2, r: "mea" },
+  { name: "Cairo", lat: 30.04, lon: 31.24, w: 2, r: "mea" },
+  { name: "Lagos", lat: 6.52, lon: 3.38, w: 2, r: "mea" },
+  { name: "Johannesburg", lat: -26.2, lon: 28.05, w: 2, r: "mea" },
+  // Asia · Oceania
+  { name: "Tokyo", lat: 35.68, lon: 139.69, w: 7, r: "ap" },
+  { name: "Osaka", lat: 34.69, lon: 135.5, w: 3, r: "ap" },
+  { name: "Taipei", lat: 25.03, lon: 121.57, w: 3, r: "ap" },
+  { name: "Hong Kong", lat: 22.32, lon: 114.17, w: 3, r: "ap" },
+  { name: "Bangkok", lat: 13.76, lon: 100.5, w: 4, r: "ap" },
+  { name: "Manila", lat: 14.6, lon: 120.98, w: 4, r: "ap" },
+  { name: "Ho Chi Minh City", lat: 10.82, lon: 106.63, w: 3, r: "ap" },
+  { name: "Singapore", lat: 1.35, lon: 103.82, w: 3, r: "ap" },
+  { name: "Jakarta", lat: -6.21, lon: 106.85, w: 4, r: "ap" },
+  { name: "Mumbai", lat: 19.08, lon: 72.88, w: 3, r: "ap" },
+  { name: "Sydney", lat: -33.87, lon: 151.21, w: 3, r: "ap" },
+  { name: "Melbourne", lat: -37.81, lon: 144.96, w: 2, r: "ap" },
+  { name: "Auckland", lat: -36.85, lon: 174.76, w: 2, r: "ap" },
+  // 원점 주변
+  { name: "Seoul", lat: 37.5665, lon: 126.978, w: 4, r: "kr" },
 ];
 const REGION_NAMES = { us: "United States", am: "Americas (ex-US)", eu: "Europe", ap: "Asia · Oceania", mea: "Middle East · Africa" };
-const LABELLED = new Set(["Los Angeles", "New York", "Chicago", "Seattle", "Dallas", "Miami"]);
+const LABELLED = new Set(["Los Angeles", "New York", "Chicago", "Seattle", "Dallas", "Mexico City", "São Paulo", "London", "Paris", "Tokyo", "Bangkok", "Jakarta", "Sydney", "Dubai", "Lagos", "Mumbai", "Manila"]);
 
 const AUTO_SPEED = 0.06;         // rad/s, 평상시 자전
 const INERTIA_DECAY = 2.6;
@@ -342,7 +386,7 @@ const DRAG_SPEED = 0.0052;
 const SPREAD_SECONDS = 9.0;      // 서울 → 가장 먼 도시까지 물결이 도달하는 시간
 const FLIGHT_SECONDS = 1.9;      // 플레이트 한 장의 비행 시간
 const HOVER_LIFT = 0.05;
-const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작아진 만큼 크게)
+const HOVER_SCALE = 1.0;         // 1.0 = 2배
 
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -469,56 +513,45 @@ const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작
   })();
   var landMat;
 
-  // ---------- plate destinations: 미국 본토 안에 서로 겹치지 않게 190장 ----------
-  const landPx = (() => {
-    const LW = 1440, LH = 720, c = document.createElement("canvas"); c.width = LW; c.height = LH;
-    const g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, LW, LH); g.fillStyle = "#fff"; g.beginPath();
-    for (const ring of LAND) { ring.forEach(([lo, la], i) => { const x = (lo + 180) / 360 * LW, y = (90 - la) / 180 * LH; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); }
-    g.fill("evenodd");
-    const d = g.getImageData(0, 0, LW, LH).data;
-    return (lat, lon) => d[(Math.min(LH - 1, Math.floor((90 - lat) / 180 * LH)) * LW + Math.min(LW - 1, Math.floor((lon + 180) / 360 * LW))) * 4] > 128;
-  })();
-  function inUS(lat, lon) {
-    if (lat < 24.5 || lat > 49.2 || lon < -124.8 || lon > -66.9) return false;
-    if (lon < -106.5 && lat < 31.3 + Math.max(0, (-111 - lon)) * 0.33) return false;          // 멕시코 국경
-    if (lon >= -106.5 && lon <= -97.2 && lat < 31.8 - (lon + 106.5) * 0.634) return false;
-    if (lon > -95 && lon <= -82 && lat > 46.3) return false;                                   // 캐나다 국경
-    if (lon > -82 && lon <= -75 && lat > 45.0) return false;
-    if (lon > -75 && lat > 45 + (lon + 75) * 0.3) return false;
-    return landPx(lat, lon);
-  }
+  // ---------- plate destinations (anchor around hubs, relaxed so none overlap) ----------
+  const LONG_SIDE = 0.062;
+  const MIN_D = LONG_SIDE * 1.46;      // 같은 방향으로 정렬된 사각형끼리 겹치지 않는 거리
   const hubVec = HUBS.map((h) => ll2v(h.lat, h.lon));
-  const cand = [];
+  const plates = [];
   {
-    const N = 160000, ga = Math.PI * (3 - Math.sqrt(5));
-    for (let i = 0; i < N; i++) {
-      const y = 1 - ((i + 0.5) / N) * 2;
-      if (y < 0.38 || y > 0.78) continue;
-      const r = Math.sqrt(1 - y * y), tt = ga * i;
-      const v = new V3(Math.cos(tt) * r, y, Math.sin(tt) * r);
-      if (inUS(Math.asin(v.y) * 180 / Math.PI, Math.atan2(v.x, v.z) * 180 / Math.PI)) cand.push(v);
+    let total = HUBS.reduce((s, h) => s + h.w, 0);
+    if (total !== PLATE_COUNT) console.warn("hub weights sum", total);
+    const ga = Math.PI * (3 - Math.sqrt(5));
+    HUBS.forEach((h, hi) => {
+      const c = hubVec[hi];
+      const east = new V3(0, 1, 0).cross(c).normalize();
+      const north = new V3().crossVectors(c, east).normalize();
+      for (let k = 0; k < h.w; k++) {
+        const rr = MIN_D * 0.62 * Math.sqrt(k + 0.5), t = k * ga;
+        const p = c.clone().addScaledVector(east, Math.cos(t) * rr).addScaledVector(north, Math.sin(t) * rr).normalize();
+        plates.push({ hub: hi, pos: p });
+      }
+    });
+    // 반발 + 허브 인력으로 이완
+    for (let it = 0; it < 140; it++) {
+      for (let i = 0; i < plates.length; i++) {
+        const a = plates[i].pos;
+        for (let j = i + 1; j < plates.length; j++) {
+          const b = plates[j].pos;
+          const d = a.distanceTo(b);
+          if (d < MIN_D && d > 1e-6) {
+            const push = (MIN_D - d) * 0.5;
+            const dir = a.clone().sub(b).divideScalar(d);
+            a.addScaledVector(dir, push); b.addScaledVector(dir, -push);
+            a.normalize(); b.normalize();
+          }
+        }
+        if (it < 120) a.lerp(hubVec[plates[i].hub], 0.004).normalize();
+      }
     }
   }
-  function poisson(d) {
-    let s = 11; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    const order = cand.map((v, i) => [rnd(), i]).sort((a, b) => a[0] - b[0]).map((x) => cand[x[1]]);
-    const out = [];
-    for (const v of order) { let ok = true; for (const u of out) if (u.distanceTo(v) < d) { ok = false; break; } if (ok) out.push(v); }
-    return out;
-  }
-  let dLo = 0.01, dHi = 0.08, chosen = [];
-  for (let it = 0; it < 14; it++) { const mid = (dLo + dHi) / 2; const r = poisson(mid); if (r.length >= PLATE_COUNT) { dLo = mid; chosen = r; } else dHi = mid; }
-  if (chosen.length < PLATE_COUNT) chosen = poisson(dLo);
-  const MIN_D = dLo;
-  const LONG_SIDE = MIN_D * 0.68;     // 외접원 반지름 < 이웃 거리/2 → 겹치지 않음
-  const plates = chosen.slice(0, PLATE_COUNT).map((v) => {
-    let best = 0, bd = 9; hubVec.forEach((h, i) => { const d = h.distanceTo(v); if (d < bd) { bd = d; best = i; } });
-    return { hub: best, pos: v.clone().normalize() };
-  });
   let realMin = Infinity;
   for (let i = 0; i < plates.length; i++) for (let j = i + 1; j < plates.length; j++) realMin = Math.min(realMin, plates[i].pos.distanceTo(plates[j].pos));
-  const lonOf = (v) => Math.atan2(v.x, v.z) * 180 / Math.PI;
-  const lonMin = Math.min(...plates.map((p) => lonOf(p.pos))), lonMax = Math.max(...plates.map((p) => lonOf(p.pos)));
 
   // 각 플레이트의 경로 정보
   plates.forEach((p, i) => {
@@ -529,7 +562,7 @@ const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작
     p.km = kmBetween(O, n);
     p.height = 0.04 + 0.34 * (p.angle / Math.PI);
     p.axis = new V3().crossVectors(O, n); if (p.axis.lengthSq() < 1e-9) p.axis.set(0, 1, 0); p.axis.normalize();
-    p.delay = 0.6 + ((lonOf(n) - lonMin) / (lonMax - lonMin)) * 3.6 + ((i * 0.6180339) % 1) * 0.6;
+    p.delay = 0.35 + (p.angle / Math.PI) * SPREAD_SECONDS + ((i * 0.6180339) % 1) * 0.5;
     p.region = HUBS[p.hub].r;
   });
   const lastArrival = Math.max(...plates.map((p) => p.delay)) + FLIGHT_SECONDS;
@@ -770,8 +803,20 @@ const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작
     aUv.needsUpdate = aSize.needsUpdate = true;
   }
 
-  // ---------- labels ----------
-  const hubArrival = HUBS.map((h, hi) => { const a = plates.filter((p) => p.hub === hi).map((p) => p.delay + FLIGHT_SECONDS); return a.length ? Math.min(...a) : 99; });
+  // ---------- HUD: regions + labels ----------
+  const regionTotals = {}, regionEls = {};
+  plates.forEach((p) => { if (p.region !== "kr") regionTotals[p.region] = (regionTotals[p.region] || 0) + 1; });
+  Object.keys(REGION_NAMES).forEach((r) => {
+    const el = document.createElement("div");
+    el.className = "reg " + r;
+    el.innerHTML = `<span>${REGION_NAMES[r]}</span><b>0</b><div class="bar2"><i></i></div>`;
+    $("regions").appendChild(el);
+    regionEls[r] = { n: el.querySelector("b"), bar: el.querySelector("i") };
+  });
+  const maxRegion = Math.max(...Object.values(regionTotals));
+  const nonOriginHubs = HUBS.filter((h) => h.name !== ORIGIN.name).length;
+  $("sCitiesTotal").textContent = "/ " + nonOriginHubs;
+  const hubArrival = HUBS.map((h, hi) => Math.min(...plates.filter((p) => p.hub === hi).map((p) => p.delay + FLIGHT_SECONDS)));
 
   const labelEls = [];
   const originLbl = document.createElement("div");
@@ -872,12 +917,7 @@ const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작
     const qLat = new THREE.Quaternion().setFromAxisAngle(AX, THREE.MathUtils.degToRad(ORIGIN.lat * 0.75));
     globe.quaternion.copy(qLat).multiply(qLon);
     vel.x = vel.y = 0;
-    spunSoFar = 0;
   }
-  var spunSoFar = 0;
-  // 서울 → 미국(서경 97°)까지 동쪽으로 돌아야 하는 각도. 시간 기준이라 프레임이 느려도 항상 미국에서 멈춤
-  const SPIN_TO_US = THREE.MathUtils.degToRad(((-97 - ORIGIN.lon) + 360) % 360);
-  const SPIN_START = 0.4, SPIN_DUR = 5.2;
   resetOrientation();
 
   function resize() {
@@ -908,10 +948,9 @@ const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작
     if (!dragging) {
       if (Math.abs(vel.x) + Math.abs(vel.y) > 1e-4) { rotateWorld(vel.x * dt, vel.y * dt); const d = Math.exp(-INERTIA_DECAY * dt); vel.x *= d; vel.y *= d; }
       // 확산 중에는 물결을 따라 태평양을 건너 미국 쪽으로 빠르게, 그 뒤엔 천천히
-      const k = clamp01((T - SPIN_START) / SPIN_DUR);
-      const want = SPIN_TO_US * (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
-      spin(-(want - spunSoFar)); spunSoFar = want;          // 음수 = 동쪽(태평양→미국)으로
-      if (k >= 1 && Math.hypot(vel.x, vel.y) < 0.25) spin(-AUTO_SPEED * 0.5 * dt * (hovered >= 0 ? 0.15 : 1));
+      const spreading = T < SPREAD_SECONDS * 0.62 ? 1 : 0;
+      const sp = Math.hypot(vel.x, vel.y) > 0.25 ? 0 : (spreading ? 0.42 : AUTO_SPEED) * (hovered >= 0 ? 0.15 : 1);
+      spin(-sp * dt * (T < 1.2 ? T / 1.2 : 1));   // 음수 = 동쪽(태평양→미국)으로
     }
 
     hovered = dragging ? -1 : pick();
@@ -953,6 +992,19 @@ const HOVER_SCALE = 1.6;         // 1.6 = 2.6배 (미국에 촘촘히 놓여 작
       aState.setXY(i, h, local);
     }
     mesh.instanceMatrix.needsUpdate = true; aState.needsUpdate = true;
+
+    const key = arrived + ":" + citySet.size;
+    if (key !== statsKey) {
+      statsKey = key;
+      $("sPlates").textContent = arrived;
+      $("sCities").textContent = citySet.size;
+      $("sKm").textContent = far.toLocaleString("en-US");
+      for (const r in regionEls) {
+        const a = regArr[r] || 0;
+        regionEls[r].n.textContent = `${a}`;
+        regionEls[r].bar.style.width = (a / maxRegion * 100).toFixed(1) + "%";
+      }
+    }
 
     // labels
     globe.updateMatrixWorld();
